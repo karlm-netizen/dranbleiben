@@ -1,0 +1,15 @@
+{
+  "name": "Dranbleiben",
+  "short_name": "Dranbleiben",
+  "description": "Täglicher Ziel- und Habit-Tracker mit Serien und Konsistenz-Statistiken.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F5F0",
+  "theme_color": "#1B8A6B",
+  "lang": "de",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

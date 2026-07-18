@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22a07f"/>
+      <stop offset="1" stop-color="#156b52"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Spross: Stiel + zwei Blätter, plus kleine Flamme-Andeutung als Punkt -->
+  <path d="M256 372 V232" fill="none" stroke="#F4F1E6" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 268 C 232 232, 176 224, 150 236 C 168 292, 224 300, 256 268 Z" fill="#F4F1E6"/>
+  <path d="M256 244 C 280 208, 336 200, 362 212 C 344 268, 288 276, 256 244 Z" fill="#EDE8D6"/>
+  <circle cx="256" cy="168" r="20" fill="#F0894A"/>
+</svg>
