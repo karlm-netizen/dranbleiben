@@ -327,6 +327,47 @@
   footer button:active { transform: scale(.94); }
   footer .note { font-size: 11.5px; color: var(--faint); flex-basis: 100%; margin-top: 4px; }
 
+  /* Große Flamme in der Mitte (Feier-Moment) */
+  .bigflame { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden;
+    background: radial-gradient(circle at 50% 56%, rgba(220,107,36,.22), rgba(0,0,0,.5) 68%);
+    opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+  .bigflame.show { opacity: 1; pointer-events: auto; }
+  .bigflame:not(.show) .bf-fl, .bigflame:not(.show) .bf-glow { animation-play-state: paused; }
+  .bf-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 2;
+    transform: scale(.35) translateY(40px); opacity: 0; }
+  .bigflame.show .bf-inner { animation: bfin .62s cubic-bezier(.2,1.35,.35,1) forwards; }
+  @keyframes bfin { to { transform: none; opacity: 1; } }
+
+  .bf-flame { position: relative; width: 160px; height: 210px; }
+  .bf-glow { position: absolute; inset: -40px -30px -10px; border-radius: 50%;
+    background: radial-gradient(50% 56% at 50% 66%, rgba(240,137,74,.6), transparent 70%);
+    filter: blur(10px); animation: glowpulse 2s ease-in-out infinite; }
+  .bf-fl { position: absolute; left: 50%; bottom: 10px; border-radius: 50% 50% 48% 48% / 64% 64% 40% 40%;
+    transform-origin: 50% 92%; }
+  .bf-fl.outer { width: 118px; height: 165px; margin-left: -59px;
+    background: linear-gradient(to top, #ffd757, #DC6B24 50%, #9c3c0e 100%);
+    box-shadow: 0 0 70px -4px #DC6B24, 0 0 130px -10px #f0894a; animation: flick 1.15s ease-in-out infinite; }
+  .bf-fl.mid { width: 72px; height: 108px; margin-left: -36px; bottom: 14px;
+    background: linear-gradient(to top, #ffe98a, #ff9f30 58%, #f0894a); animation: flick .93s ease-in-out infinite; }
+  .bf-fl.inner { width: 36px; height: 62px; margin-left: -18px; bottom: 18px;
+    background: linear-gradient(to top, #fffdf2, #ffd94e 68%, #ffa93a); animation: flick .68s ease-in-out infinite; }
+  .bf-spark { position: absolute; left: 50%; bottom: 120px; width: 5px; height: 5px; border-radius: 50%;
+    background: #ffce4a; box-shadow: 0 0 8px 1px #f0894a; opacity: 0; }
+  .bigflame.show .bf-spark { animation: riseBig 1.7s ease-in infinite; }
+  .bf-spark.k2 { margin-left: 14px; animation-delay: .5s !important; }
+  .bf-spark.k3 { margin-left: -16px; animation-delay: .9s !important; }
+  .bf-spark.k4 { margin-left: 26px; animation-delay: 1.3s !important; }
+  .bf-spark.k5 { margin-left: -27px; animation-delay: .25s !important; }
+  @keyframes riseBig { 0% { opacity: 0; transform: translateY(0) scale(1); } 18% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-130px) scale(.2); } }
+
+  .bf-streak { display: flex; align-items: baseline; gap: 9px; font-family: var(--mono); margin-top: 2px; }
+  .bf-streak .n { font-size: 60px; font-weight: 700; letter-spacing: -.04em; color: #F0894A;
+    text-shadow: 0 0 28px rgba(240,137,74,.75); }
+  .bf-streak .l { font-size: 15px; font-weight: 600; color: rgba(255,255,255,.82); }
+  .bf-msg { color: #fff; font-weight: 650; font-size: 16.5px; letter-spacing: -.01em; text-shadow: 0 1px 12px rgba(0,0,0,.4); }
+  .bf-hint { color: rgba(255,255,255,.5); font-size: 11.5px; margin-top: 8px; }
+
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 </style>
@@ -443,6 +484,22 @@
     </div>
     <div class="note">Läuft offline; Daten liegen lokal in diesem Browser. Gerätesync kommt als Nächstes.</div>
   </footer>
+</div>
+
+<div class="bigflame" id="bigflame" aria-hidden="true">
+  <div class="bf-inner">
+    <div class="bf-flame">
+      <div class="bf-glow"></div>
+      <div class="bf-fl outer"></div>
+      <div class="bf-fl mid"></div>
+      <div class="bf-fl inner"></div>
+      <span class="bf-spark k1"></span><span class="bf-spark k2"></span><span class="bf-spark k3"></span>
+      <span class="bf-spark k4"></span><span class="bf-spark k5"></span>
+    </div>
+    <div class="bf-msg" id="bf-msg">Perfekter Tag!</div>
+    <div class="bf-streak"><span class="n" id="bf-n">0</span><span class="l" id="bf-nl">Tage Serie</span></div>
+    <div class="bf-hint">Tippen zum Schließen</div>
+  </div>
 </div>
 
 <div class="toast" id="toast"><span class="em" id="toast-em">🌱</span><span id="toast-msg"></span></div>
@@ -773,16 +830,17 @@
     pendingEnter = false;
   }
 
-  function fireConfetti() {
+  function fireConfetti(anchor, count, spread) {
     if (reduced()) return;
-    var anchor = document.querySelector(".summary");
+    anchor = anchor || document.querySelector(".summary");
+    var n = count || 20; var sp = spread || 1;
     var colors = ["#F0894A", "#3BBB8E", "#ffd351", "#DC6B24", "#7ad6b3", "#E0A32E"];
     var box = document.createElement("div"); box.className = "confetti";
-    for (var i = 0; i < 20; i++) {
+    for (var i = 0; i < n; i++) {
       var p = document.createElement("i");
-      var ang = Math.random() * Math.PI * 2, dist = 45 + Math.random() * 85;
+      var ang = Math.random() * Math.PI * 2, dist = (45 + Math.random() * 85) * sp;
       p.style.setProperty("--dx", (Math.cos(ang) * dist).toFixed(1) + "px");
-      p.style.setProperty("--dy", (Math.sin(ang) * dist - 20).toFixed(1) + "px");
+      p.style.setProperty("--dy", (Math.sin(ang) * dist - 20 * sp).toFixed(1) + "px");
       p.style.setProperty("--rot", (Math.random() * 560 - 280).toFixed(0) + "deg");
       p.style.background = colors[i % colors.length];
       p.style.animationDelay = (Math.random() * 0.09).toFixed(2) + "s";
@@ -801,6 +859,20 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2600);
   }
+
+  // Große Flamme in der Bildschirmmitte beim perfekten Tag
+  var bigTimer = null;
+  function showBigFlame(streak, milestone) {
+    var o = el("bigflame");
+    el("bf-n").textContent = streak;
+    el("bf-nl").textContent = (streak === 1 ? "Tag Serie" : "Tage Serie");
+    el("bf-msg").textContent = milestone ? ("🏅 Meilenstein — " + streak + " Tage!") : "Perfekter Tag!";
+    o.classList.add("show");
+    fireConfetti(o, 34, 3.4);
+    clearTimeout(bigTimer);
+    bigTimer = setTimeout(function () { o.classList.remove("show"); }, milestone ? 4200 : 3000);
+  }
+  el("bigflame").addEventListener("click", function () { this.classList.remove("show"); clearTimeout(bigTimer); });
 
   function renderSummary() {
     var tk = todayKey();
@@ -843,10 +915,8 @@
     if (perfect && wasPerfect === false) {
       summary.classList.remove("burst"); void summary.offsetWidth; summary.classList.add("burst");
       setTimeout(function () { summary.classList.remove("burst"); }, 950);
-      fireConfetti();
       buzz([18, 40, 22]);
-      if (MILESTONES.indexOf(ps) !== -1) toast(ps + " Tage am Stück — Meilenstein!", "🏅");
-      else toast("Perfekter Tag! Serie: " + ps, "🔥");
+      showBigFlame(ps, MILESTONES.indexOf(ps) !== -1);
     }
     wasPerfect = perfect;
     lastPf = ps;
