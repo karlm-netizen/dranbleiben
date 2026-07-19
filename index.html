@@ -15,9 +15,10 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Dranbleiben</title>
 <script>
-  // Theme früh anwenden (kein Flackern)
+  // Theme früh anwenden (kein Flackern) — aus den Einstellungen, mit Fallback auf alten Schlüssel
   try {
-    var t = localStorage.getItem("dranbleiben.theme");
+    var _s = JSON.parse(localStorage.getItem("dranbleiben.settings") || "null");
+    var t = (_s && _s.theme) || localStorage.getItem("dranbleiben.theme");
     if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
   } catch (e) {}
 </script>
@@ -269,7 +270,7 @@
   .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 26px 10px; }
 
   /* Toast */
-  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 50;
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 95;
     background: var(--ink); color: var(--ground); font-size: 13.5px; font-weight: 600; padding: 11px 18px; border-radius: 30px;
     box-shadow: 0 10px 30px -8px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
     display: flex; align-items: center; gap: 8px; max-width: 90vw; }
@@ -368,6 +369,51 @@
   .bf-msg { color: #fff; font-weight: 650; font-size: 16.5px; letter-spacing: -.01em; text-shadow: 0 1px 12px rgba(0,0,0,.4); }
   .bf-hint { color: rgba(255,255,255,.5); font-size: 11.5px; margin-top: 8px; }
 
+  /* Einstellungen-Panel */
+  .sheet-back { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.42); opacity: 0; pointer-events: none;
+    transition: opacity .28s ease; }
+  .sheet-back.show { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; z-index: 91; left: 50%; bottom: 0; width: min(540px, 100%);
+    transform: translateX(-50%) translateY(100%);
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 20px 20px 0 0;
+    padding: 6px 20px 26px; box-shadow: 0 -12px 44px -14px rgba(0,0,0,.45);
+    transition: transform .34s cubic-bezier(.2,.9,.3,1); max-height: 90vh; overflow-y: auto; }
+  .sheet.show { transform: translateX(-50%) translateY(0); }
+  @media (min-width: 560px) {
+    .sheet { bottom: auto; top: 50%; border-radius: 18px; transform: translate(-50%, -48%) scale(.96); opacity: 0;
+      transition: transform .3s cubic-bezier(.2,1.2,.35,1), opacity .3s ease; }
+    .sheet.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  }
+  .sheet .grip { width: 38px; height: 4px; border-radius: 2px; background: var(--hairline); margin: 8px auto 4px; }
+  .sheet h2 { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin: 6px 2px 2px; }
+  .set-group { margin-top: 18px; }
+  .set-group .gh { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 0 2px 9px; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 2px;
+    border-top: 1px solid var(--hairline); }
+  .set-group .set-row:first-of-type { border-top: 0; }
+  .set-row .lbl { font-size: 14.5px; font-weight: 550; letter-spacing: -.01em; }
+  .set-row .lbl small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 2px; letter-spacing: 0; }
+
+  .seg { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--hairline); padding: 4px; border-radius: 11px; }
+  .seg button { flex: 1; border: 0; background: transparent; color: var(--muted); font-family: var(--sans); font-size: 13.5px;
+    font-weight: 600; padding: 9px 6px; border-radius: 8px; cursor: pointer; transition: color .18s, transform .1s; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .seg button:active { transform: scale(.95); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .switch { position: relative; width: 46px; height: 27px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .switch .track { position: absolute; inset: 0; background: var(--hairline); border-radius: 20px; transition: background .22s; }
+  .switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .22s cubic-bezier(.3,1.3,.4,1); }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(19px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .mini-btn { border: 1px solid var(--hairline); background: var(--surface); color: var(--muted); font-family: var(--sans);
+    font-size: 12.5px; font-weight: 600; padding: 8px 13px; border-radius: 9px; cursor: pointer; transition: transform .1s; }
+  .mini-btn:active { transform: scale(.94); }
+
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 </style>
@@ -380,7 +426,7 @@
     <div class="brand"><span class="logo">🌱</span><h1>Dranbleiben</h1></div>
     <div class="head-right">
       <div class="date"><b id="d-weekday">—</b><span id="d-date">—</span></div>
-      <button class="theme-btn" id="theme-btn" title="Design wechseln" aria-label="Design wechseln">🌗</button>
+      <button class="theme-btn" id="settings-btn" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
     </div>
   </header>
 
@@ -477,13 +523,58 @@
   </section>
 
   <footer>
-    <div class="io">
-      <button id="export-btn">Export</button>
-      <button id="import-btn">Import</button>
-      <input type="file" id="import-file" accept="application/json" class="hidden">
-    </div>
-    <div class="note">Läuft offline; Daten liegen lokal in diesem Browser. Gerätesync kommt als Nächstes.</div>
+    <div class="note" style="flex-basis:auto;margin:0">Läuft offline · Daten lokal auf diesem Gerät · Einstellungen über ⚙️ oben rechts</div>
   </footer>
+</div>
+
+<div class="sheet-back" id="sheet-back"></div>
+<div class="sheet" id="settings" role="dialog" aria-modal="true" aria-label="Einstellungen">
+  <div class="grip"></div>
+  <h2>Einstellungen</h2>
+
+  <div class="set-group">
+    <div class="gh">Design</div>
+    <div class="seg" id="seg-theme" role="group" aria-label="Design">
+      <button data-theme-val="auto" aria-pressed="true">Auto</button>
+      <button data-theme-val="light" aria-pressed="false">Hell</button>
+      <button data-theme-val="dark" aria-pressed="false">Dunkel</button>
+    </div>
+  </div>
+
+  <div class="set-group">
+    <div class="gh">Feedback</div>
+    <div class="set-row">
+      <span class="lbl">Sound<small>Töne beim Abhaken & perfekten Tag</small></span>
+      <label class="switch"><input type="checkbox" id="set-sound"><span class="track"></span></label>
+    </div>
+    <div class="set-row">
+      <span class="lbl">Vibration<small>Haptisches Feedback am Handy</small></span>
+      <label class="switch"><input type="checkbox" id="set-haptics"><span class="track"></span></label>
+    </div>
+    <div class="set-row">
+      <span class="lbl">Animationen reduzieren<small>Weniger Bewegung & Effekte</small></span>
+      <label class="switch"><input type="checkbox" id="set-motion"><span class="track"></span></label>
+    </div>
+  </div>
+
+  <div class="set-group">
+    <div class="gh">Daten</div>
+    <div class="set-row">
+      <span class="lbl">Sichern & Wiederherstellen<small>Deine Ziele als Datei exportieren/importieren</small></span>
+      <span style="display:flex;gap:8px;flex:none">
+        <button class="mini-btn" id="export-btn">Export</button>
+        <button class="mini-btn" id="import-btn">Import</button>
+      </span>
+    </div>
+    <input type="file" id="import-file" accept="application/json" class="hidden">
+  </div>
+
+  <div class="set-group">
+    <div class="gh">Über</div>
+    <p class="hint" style="margin:0">Dranbleiben · läuft offline, deine Daten liegen lokal auf diesem Gerät.</p>
+  </div>
+
+  <button class="btn" id="settings-close" style="width:100%;margin-top:22px">Fertig</button>
 </div>
 
 <div class="bigflame" id="bigflame" aria-hidden="true">
@@ -520,8 +611,49 @@
   function fromKey(k) { var p = k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
   function startOfDay(d) { var x = new Date(d); x.setHours(0,0,0,0); return x; }
   function uid() { return Math.random().toString(36).slice(2, 9); }
-  function reduced() { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } }
-  function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+  // ---- Einstellungen ----
+  function loadSettings() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem("dranbleiben.settings") || "null"); } catch (e) {}
+    if (!s || typeof s !== "object") s = {};
+    if (s.theme !== "light" && s.theme !== "dark" && s.theme !== "auto") {
+      var old = null; try { old = localStorage.getItem("dranbleiben.theme"); } catch (e) {}
+      s.theme = (old === "light" || old === "dark") ? old : "auto";
+    }
+    if (typeof s.sound !== "boolean") s.sound = false;    // Sound standardmäßig aus
+    if (typeof s.haptics !== "boolean") s.haptics = true; // Vibration an
+    if (s.motion !== "reduced" && s.motion !== "full") s.motion = "full";
+    return s;
+  }
+  function saveSettings() { try { localStorage.setItem("dranbleiben.settings", JSON.stringify(settings)); } catch (e) {} }
+  var settings = loadSettings();
+
+  function reduced() {
+    if (settings.motion === "reduced") return true;
+    try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
+  }
+  function buzz(ms) { try { if (settings.haptics && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+  // Sound per WebAudio erzeugt (kein externer Download, CSP-sicher)
+  var actx = null;
+  function tone(freqs, dur, vol) {
+    if (!settings.sound) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      var t0 = actx.currentTime;
+      freqs.forEach(function (f, i) {
+        var o = actx.createOscillator(), g = actx.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        var st = t0 + i * 0.085;
+        g.gain.setValueAtTime(0.0001, st);
+        g.gain.exponentialRampToValueAtTime(vol || 0.14, st + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, st + (dur || 0.26));
+        o.connect(g); g.connect(actx.destination);
+        o.start(st); o.stop(st + (dur || 0.26) + 0.03);
+      });
+    } catch (e) {}
+  }
 
   var state = load();
   function load() {
@@ -765,6 +897,7 @@
   }
 
   function updateRowAfterToggle(row, g, added) {
+    if (added) tone([880], 0.13, 0.07);
     row.classList.toggle("done", added);
     row.setAttribute("aria-pressed", added ? "true" : "false");
     row.classList.add("just");
@@ -916,6 +1049,7 @@
       summary.classList.remove("burst"); void summary.offsetWidth; summary.classList.add("burst");
       setTimeout(function () { summary.classList.remove("burst"); }, 950);
       buzz([18, 40, 22]);
+      tone([523.25, 659.25, 783.99, 1046.5], 0.34, 0.16);
       showBigFlame(ps, MILESTONES.indexOf(ps) !== -1);
     }
     wasPerfect = perfect;
@@ -1059,22 +1193,42 @@
   el("tab-today").addEventListener("click", function () { switchTab("today"); });
   el("tab-stats").addEventListener("click", function () { switchTab("stats"); });
 
-  // Theme-Umschalter (nur wenn der Button existiert; in der Artifact-Version steuert der Viewer das Theme)
-  var themeBtn = el("theme-btn");
-  if (themeBtn) {
-    var applyTheme = function (mode) {
-      if (mode === "light" || mode === "dark") document.documentElement.setAttribute("data-theme", mode);
-      else document.documentElement.removeAttribute("data-theme");
-      themeBtn.textContent = mode === "light" ? "☀️" : mode === "dark" ? "🌙" : "🌗";
-    };
-    var themeMode = (function () { try { return localStorage.getItem("dranbleiben.theme") || "auto"; } catch (e) { return "auto"; } })();
-    applyTheme(themeMode);
-    themeBtn.addEventListener("click", function () {
-      themeMode = themeMode === "auto" ? "light" : themeMode === "light" ? "dark" : "auto";
-      try { localStorage.setItem("dranbleiben.theme", themeMode); } catch (e) {}
-      applyTheme(themeMode);
-    });
+  // ---- Einstellungen-Panel ----
+  function applyTheme(mode) {
+    if (mode === "light" || mode === "dark") document.documentElement.setAttribute("data-theme", mode);
+    else document.documentElement.removeAttribute("data-theme");
   }
+  function syncSettingsUI() {
+    document.querySelectorAll("#seg-theme button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.themeVal === settings.theme ? "true" : "false");
+    });
+    el("set-sound").checked = settings.sound;
+    el("set-haptics").checked = settings.haptics;
+    el("set-motion").checked = settings.motion === "reduced";
+  }
+  applyTheme(settings.theme);
+
+  function openSettings() { syncSettingsUI(); el("sheet-back").classList.add("show"); el("settings").classList.add("show"); }
+  function closeSettings() { el("sheet-back").classList.remove("show"); el("settings").classList.remove("show"); }
+  el("settings-btn").addEventListener("click", openSettings);
+  el("settings-close").addEventListener("click", closeSettings);
+  el("sheet-back").addEventListener("click", closeSettings);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSettings(); });
+
+  document.querySelectorAll("#seg-theme button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      settings.theme = b.dataset.themeVal; saveSettings(); applyTheme(settings.theme); syncSettingsUI();
+    });
+  });
+  el("set-sound").addEventListener("change", function () {
+    settings.sound = this.checked; saveSettings(); if (this.checked) tone([880, 1175], 0.16, 0.1);
+  });
+  el("set-haptics").addEventListener("change", function () {
+    settings.haptics = this.checked; saveSettings(); if (this.checked) buzz(16);
+  });
+  el("set-motion").addEventListener("change", function () {
+    settings.motion = this.checked ? "reduced" : "full"; saveSettings();
+  });
 
   // Export / Import
   el("export-btn").addEventListener("click", function () {
