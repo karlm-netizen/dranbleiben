@@ -236,7 +236,11 @@
   @keyframes ripple { to { transform: scale(6); opacity: 0; } }
 
   .goal .emoji-edit, .goal .freq-edit, .goal .reorder, .goal .del { display: none; }
-  .goal .del { border: 0; background: none; color: var(--faint); cursor: pointer; padding: 4px; font-size: 17px; line-height: 1; }
+  .goal .del { border: 0; background: none; color: var(--faint); cursor: pointer; padding: 10px 12px; margin: -6px -8px;
+    font-size: 17px; line-height: 1; border-radius: 9px; transition: background .15s, color .15s; }
+  .goal .del.armed { background: #d43f3f; color: #fff; font-size: 12.5px; font-weight: 700; font-family: var(--sans);
+    padding: 9px 12px; margin: -5px -8px; animation: armpulse 1s ease-in-out infinite; }
+  @keyframes armpulse { 50% { filter: brightness(1.15); } }
   .goal .emoji-edit { width: 42px; flex: none; text-align: center; background: var(--surface-2); border: 1px solid var(--hairline);
     border-radius: 8px; padding: 7px 2px; font-size: 18px; font-family: var(--sans); color: var(--ink); }
   .goal .freq-edit { flex: none; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 8px;
@@ -870,16 +874,31 @@
     row.querySelector(".up").addEventListener("click", function (ev) { ev.stopPropagation(); moveGoal(g.id, -1); });
     row.querySelector(".dn").addEventListener("click", function (ev) { ev.stopPropagation(); moveGoal(g.id, 1); });
     // Löschen
-    row.querySelector(".del").addEventListener("click", function (ev) {
+    // Löschen ohne Browser-Dialog (confirm() ist in der Handy-Version blockiert):
+    // 1. Tipp = ✕ wird zu rotem „Löschen?", 2. Tipp = wirklich löschen, sonst nach 3s zurück.
+    var delBtn = row.querySelector(".del");
+    var delTimer = null;
+    delBtn.addEventListener("click", function (ev) {
       ev.stopPropagation();
-      if (confirm('Ziel „' + g.name + '" löschen? Die Historie geht verloren.')) {
-        state.goals = state.goals.filter(function (x) { return x.id !== g.id; });
-        Object.keys(state.checks).forEach(function (k) {
-          state.checks[k] = state.checks[k].filter(function (id) { return id !== g.id; });
-          if (!state.checks[k].length) delete state.checks[k];
-        });
-        save(); renderToday(); renderSummary();
+      if (!delBtn.classList.contains("armed")) {
+        delBtn.classList.add("armed");
+        delBtn.textContent = "Löschen?";
+        delBtn.setAttribute("aria-label", "Nochmal tippen zum endgültigen Löschen");
+        clearTimeout(delTimer);
+        delTimer = setTimeout(function () {
+          delBtn.classList.remove("armed"); delBtn.textContent = "✕";
+          delBtn.setAttribute("aria-label", "Ziel löschen");
+        }, 3000);
+        return;
       }
+      clearTimeout(delTimer);
+      state.goals = state.goals.filter(function (x) { return x.id !== g.id; });
+      Object.keys(state.checks).forEach(function (k) {
+        state.checks[k] = state.checks[k].filter(function (id) { return id !== g.id; });
+        if (!state.checks[k].length) delete state.checks[k];
+      });
+      save(); renderToday(); renderSummary();
+      toast('„' + g.name + '" gelöscht', "🗑️");
     });
     // Name editierbar (nur im Manage-Modus)
     if (managing) {
@@ -1247,8 +1266,8 @@
           s.goals.forEach(function (g) { if (typeof g.target !== "number") g.target = 7; });
           state = s; save(); viewDate = startOfDay(new Date()); renderAll();
           toast("Daten importiert", "📥");
-        } else alert("Diese Datei sieht nicht wie ein Dranbleiben-Export aus.");
-      } catch (e) { alert("Import fehlgeschlagen: Datei nicht lesbar."); }
+        } else toast("Das sieht nicht wie ein Dranbleiben-Export aus", "⚠️");
+      } catch (e) { toast("Import fehlgeschlagen: Datei nicht lesbar", "⚠️"); }
     };
     r.readAsText(f);
     ev.target.value = "";
