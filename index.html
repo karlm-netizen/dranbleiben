@@ -220,14 +220,15 @@
     background: var(--accent); opacity: .5; pointer-events: none; animation: ripple .5s ease-out forwards; }
   @keyframes ripple { to { transform: scale(6); opacity: 0; } }
 
-  .goal .emoji-edit, .goal .freq-edit, .goal .reorder, .goal .del { display: none; }
+  .goal .icon-edit, .goal .freq-edit, .goal .reorder, .goal .del { display: none; }
   .goal .del { border: 0; background: none; color: var(--faint); cursor: pointer; padding: 10px 12px; margin: -6px -8px;
     font-size: 17px; line-height: 1; border-radius: 9px; transition: background .15s, color .15s; }
   .goal .del.armed { background: #d43f3f; color: #fff; font-size: 12.5px; font-weight: 700; font-family: var(--sans);
     padding: 9px 12px; margin: -5px -8px; animation: armpulse 1s ease-in-out infinite; }
   @keyframes armpulse { 50% { filter: brightness(1.15); } }
-  .goal .emoji-edit { width: 42px; flex: none; text-align: center; background: var(--surface-2); border: 1px solid var(--hairline);
-    border-radius: 8px; padding: 7px 2px; font-size: 18px; font-family: var(--sans); color: var(--ink); }
+  .goal .icon-edit { width: 42px; height: 38px; flex: none; background: var(--surface-2); border: 1px solid var(--hairline);
+    border-radius: 8px; cursor: pointer; color: var(--ink); place-items: center; }
+  .goal .icon-edit svg { width: 19px; height: 19px; }
   .goal .freq-edit { flex: none; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 8px;
     padding: 6px 4px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
   .goal .reorder { gap: 4px; }
@@ -236,7 +237,7 @@
   .goal .reorder button:disabled { opacity: .3; cursor: default; }
   .managing .goal { cursor: default; flex-wrap: wrap; }
   .managing .goal .check, .managing .goal .streak-mini, .managing .goal .weekpill, .managing .goal .emoji { display: none; }
-  .managing .goal .emoji-edit { display: block; }
+  .managing .goal .icon-edit { display: grid; }
   .managing .goal .freq-edit { display: block; }
   .managing .goal .reorder { display: flex; }
   .managing .goal .del { display: block; }
@@ -246,7 +247,6 @@
   .add-row { display: flex; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
   .add-row input { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--hairline);
     border-radius: var(--radius-sm); padding: 12px 14px; font-family: var(--sans); font-size: 15px; color: var(--ink); }
-  .add-row .emoji-in { width: 52px; flex: none; text-align: center; padding: 12px 6px; }
   .add-row select { flex: none; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-sm);
     padding: 0 10px; font-family: var(--sans); font-size: 13.5px; color: var(--muted); }
   .add-row input:focus, .add-row select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
@@ -438,6 +438,17 @@
   .ico.s18 svg { width: 18px; height: 18px; }
   .ico.s20 svg { width: 20px; height: 20px; }
 
+  /* Symbol-Auswahl */
+  .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; margin-top: 12px; }
+  .icon-grid button { aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--hairline);
+    background: var(--surface-2); border-radius: 12px; cursor: pointer; color: var(--ink); transition: transform .1s; }
+  .icon-grid button:active { transform: scale(.93); }
+  .icon-grid button.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+  .icon-grid button svg { width: 22px; height: 22px; }
+  .icon-pick { width: 48px; height: 48px; flex: none; border: 1px solid var(--hairline); background: var(--surface);
+    border-radius: var(--radius-sm); display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+  .icon-pick svg { width: 21px; height: 21px; }
+
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 </style>
@@ -507,7 +518,7 @@
     <div class="list" id="goal-list"></div>
 
     <div class="add-row" id="add-row">
-      <input class="emoji-in" id="new-emoji" maxlength="2" value="✅" aria-label="Emoji" inputmode="text">
+      <button class="icon-pick" id="new-icon" type="button" aria-label="Symbol wählen"></button>
       <input id="new-name" placeholder="Neues Ziel …" aria-label="Zielname" maxlength="60">
       <select id="new-freq" aria-label="Häufigkeit">
         <option value="7">täglich</option>
@@ -553,6 +564,14 @@
     </div>
   </section>
 
+</div>
+
+<div class="sheet-back" id="pick-back"></div>
+<div class="sheet" id="picker" role="dialog" aria-modal="true" aria-label="Symbol wählen">
+  <div class="grip"></div>
+  <h2>Symbol wählen</h2>
+  <div class="icon-grid" id="icon-grid"></div>
+  <button class="btn" id="picker-close" style="width:100%;margin-top:18px">Abbrechen</button>
 </div>
 
 <div class="sheet-back" id="sheet-back"></div>
@@ -683,8 +702,39 @@
     upload:  '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/>',
     download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
     trash:   '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
-    check:   '<path d="M20 6 9 17l-5-5"/>'
+    check:   '<path d="M20 6 9 17l-5-5"/>',
+    target:  '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    dumbbell:'<path d="M6 8v8"/><path d="M18 8v8"/><path d="M3 10v4"/><path d="M21 10v4"/><path d="M6 12h12"/>',
+    yoga:    '<circle cx="12" cy="5" r="2"/><path d="M12 7v5"/><path d="M8 20c0-3 1.8-5 4-5s4 2 4 5"/><path d="M5 20h14"/>',
+    run:     '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    bike:    '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
+    book:    '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+    droplet: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+    coffee:  '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>',
+    bed:     '<path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/>',
+    moon:    '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+    sun:     '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/>',
+    music:   '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    code:    '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+    bulb:    '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.1 14c.2-1 .7-1.7 1.4-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.8 1.2 1.5 1.4 2.5"/>',
+    heart:   '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
+    leaf:    '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z"/><path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12"/>',
+    pen:     '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+    camera:  '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+    wallet:  '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+    phone:   '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+    users:   '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+    sparkles:'<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
+    clock:   '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    globe:   '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/>'
   };
+  var GOAL_ICONS = ["target","dumbbell","yoga","run","bike","book","droplet","coffee","bed","moon","sun","music",
+                    "code","bulb","heart","leaf","pen","camera","wallet","phone","users","sparkles","clock","globe"];
+  // Alte Emoji-Ziele auf Symbole übersetzen
+  var EMOJI_ICON = { "\uD83D\uDCAA":"dumbbell", "\uD83E\uDDD8":"yoga", "\u2705":"check", "\uD83D\uDCDA":"book",
+    "\uD83D\uDCA7":"droplet", "\uD83C\uDFC3":"run", "\uD83D\uDE34":"bed", "\uD83C\uDFB5":"music",
+    "\uD83D\uDCBB":"code", "\u2615":"coffee", "\uD83D\uDEB4":"bike", "\uD83C\uDF19":"moon" };
+  function iconOf(g) { return (g.icon && ICONS[g.icon]) ? g.icon : (EMOJI_ICON[g.emoji] || "target"); }
   function svg(name, cls) {
     var body = ICONS[name] || ICONS.check;
     return '<span class="ico ' + (cls || "") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -773,13 +823,13 @@
     var s = null;
     try { var raw = localStorage.getItem(KEY); if (raw) { var p = JSON.parse(raw); if (p && p.goals && p.checks) s = p; } } catch (e) {}
     if (!s) {
-      s = { goals: [
-        { id: uid(), emoji: "💪", name: "10 Liegestütze", target: 7 },
-        { id: uid(), emoji: "🧘", name: "5 Minuten dehnen", target: 7 }
-      ], checks: {} };
+      s = { goals: [], checks: {} };
     }
-    // Migration: target sicherstellen
-    s.goals.forEach(function (g) { if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7; });
+    // Migration: target und Symbol sicherstellen
+    s.goals.forEach(function (g) {
+      if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7;
+      if (!g.icon || !ICONS[g.icon]) g.icon = iconOf(g);
+    });
     return s;
   }
   function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -912,7 +962,7 @@
 
     row.innerHTML =
       '<span class="emoji"></span>' +
-      '<input class="emoji-edit" maxlength="2" aria-label="Emoji ändern">' +
+      '<button class="icon-edit" type="button" aria-label="Symbol ändern"></button>' +
       '<span class="name"></span>' +
       rightInfo +
       '<select class="freq-edit" aria-label="Häufigkeit">' +
@@ -923,11 +973,11 @@
       '<span class="check"><svg viewBox="0 0 18 18"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg></span>' +
       '<button class="del" title="Löschen" aria-label="Ziel löschen">✕</button>';
 
-    row.querySelector(".emoji").textContent = g.emoji || "•";
+    row.querySelector(".emoji").innerHTML = svg(iconOf(g), "s20");
     var nameEl = row.querySelector(".name");
     nameEl.textContent = g.name;
-    var emojiEdit = row.querySelector(".emoji-edit");
-    emojiEdit.value = g.emoji || "";
+    var iconEdit = row.querySelector(".icon-edit");
+    iconEdit.innerHTML = svg(iconOf(g));
     row.querySelector(".freq-edit").value = String(g.target || 7);
 
     // Toggle
@@ -947,10 +997,10 @@
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); act(); }
     });
 
-    // Emoji ändern
-    emojiEdit.addEventListener("input", function () {
-      var v = emojiEdit.value.trim();
-      if (v) { g.emoji = v; row.querySelector(".emoji").textContent = v; save(); }
+    // Symbol ändern
+    iconEdit.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      openPicker(iconOf(g), function (n) { g.icon = n; save(); pendingEnter = false; renderToday(); });
     });
     // Frequenz ändern
     row.querySelector(".freq-edit").addEventListener("change", function () {
@@ -1228,7 +1278,7 @@
         lead +
         '<span class="dots">' + dots + '</span>' +
         '<span class="num">' + goalRate(g.id,30) + '<span class="p">%</span></span>';
-      row.querySelector(".emoji").textContent = g.emoji || "•";
+      row.querySelector(".emoji").innerHTML = svg(iconOf(g), "s18");
       row.querySelector(".gname").textContent = g.name;
       box.appendChild(row);
     });
@@ -1246,15 +1296,39 @@
   function addGoal() {
     var name = el("new-name").value.trim();
     if (!name) { el("new-name").focus(); return; }
-    var emoji = el("new-emoji").value.trim() || "✅";
     var target = parseInt(el("new-freq").value, 10) || 7;
-    state.goals.push({ id: uid(), emoji: emoji, name: name, target: target });
+    state.goals.push({ id: uid(), icon: newIcon, name: name, target: target });
     save();
-    el("new-name").value = ""; el("new-emoji").value = "✅"; el("new-freq").value = "7";
+    el("new-name").value = ""; newIcon = "target"; renderNewIcon(); el("new-freq").value = "7";
     pendingEnter = true; renderToday(); renderSummary();
     el("new-name").focus();
     toast("Ziel hinzugefügt", "check");
   }
+  // ---- Symbol-Auswahl ----
+  var pickCb = null, newIcon = "target";
+  function openPicker(current, cb) {
+    pickCb = cb;
+    var grid = el("icon-grid"); grid.innerHTML = "";
+    GOAL_ICONS.forEach(function (n) {
+      var b = document.createElement("button");
+      b.type = "button";
+      if (n === current) b.className = "sel";
+      b.setAttribute("aria-label", n);
+      b.innerHTML = svg(n);
+      b.addEventListener("click", function () { closePicker(); if (pickCb) pickCb(n); });
+      grid.appendChild(b);
+    });
+    el("pick-back").classList.add("show"); el("picker").classList.add("show");
+  }
+  function closePicker() { el("pick-back").classList.remove("show"); el("picker").classList.remove("show"); }
+  el("picker-close").addEventListener("click", closePicker);
+  el("pick-back").addEventListener("click", closePicker);
+  function renderNewIcon() { el("new-icon").innerHTML = svg(newIcon); }
+  renderNewIcon();
+  el("new-icon").addEventListener("click", function () {
+    openPicker(newIcon, function (n) { newIcon = n; renderNewIcon(); });
+  });
+
   el("add-btn").addEventListener("click", addGoal);
   el("new-name").addEventListener("keydown", function (e) { if (e.key === "Enter") addGoal(); });
 
@@ -1370,7 +1444,10 @@
       try {
         var s = JSON.parse(r.result);
         if (s && s.goals && s.checks) {
-          s.goals.forEach(function (g) { if (typeof g.target !== "number") g.target = 7; });
+          s.goals.forEach(function (g) {
+            if (typeof g.target !== "number") g.target = 7;
+            if (!g.icon || !ICONS[g.icon]) g.icon = iconOf(g);
+          });
           state = s; save(); renderAll();
           toast("Daten importiert", "download");
         } else toast("Das sieht nicht wie ein Dranbleiben-Export aus", "⚠️");
@@ -1417,7 +1494,10 @@
 
   function normalizeState(s) {
     if (!s || !Array.isArray(s.goals) || !s.checks) return null;
-    s.goals.forEach(function (g) { if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7; });
+    s.goals.forEach(function (g) {
+      if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7;
+      if (!g.icon || !ICONS[g.icon]) g.icon = iconOf(g);
+    });
     return s;
   }
 
