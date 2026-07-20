@@ -3,8 +3,10 @@
    offline-fähig bleibt und nichts nachlädt. */
 
 window.SUPABASE_CONFIG = {
-  url: "",       // z.B. "https://xxxx.supabase.co"
-  anonKey: ""    // öffentlicher anon-Key (kein Geheimnis; RLS schützt die Daten)
+  url: "https://ophvhlfbkqhvweyjkvmz.supabase.co",
+  // Öffentlicher Publishable-Key — gehört bewusst in den Client und darf im Repo stehen.
+  // Geschützt werden die Daten durch die Row-Level-Security-Regeln (siehe supabase-setup.sql).
+  anonKey: "sb_publishable_YTKzrLzQH1fMwQBnPK7ahw_KrxFtMdX"
 };
 
 (function () {
