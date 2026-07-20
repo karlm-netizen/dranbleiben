@@ -382,8 +382,9 @@
     transform: translateX(-50%) translateY(100%);
     background: var(--surface); border: 1px solid var(--hairline); border-radius: 20px 20px 0 0;
     padding: 6px 20px 26px; box-shadow: 0 -12px 44px -14px rgba(0,0,0,.45);
-    transition: transform .34s cubic-bezier(.2,.9,.3,1); max-height: 90vh; overflow-y: auto; }
-  .sheet.show { transform: translateX(-50%) translateY(0); }
+    transition: transform .34s cubic-bezier(.2,.9,.3,1); max-height: 90vh; overflow-y: auto;
+    pointer-events: none; }
+  .sheet.show { transform: translateX(-50%) translateY(0); pointer-events: auto; }
   @media (min-width: 560px) {
     .sheet { bottom: auto; top: 50%; border-radius: 18px; transform: translate(-50%, -48%) scale(.96); opacity: 0;
       transition: transform .3s cubic-bezier(.2,1.2,.35,1), opacity .3s ease; }
