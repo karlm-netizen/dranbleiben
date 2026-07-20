@@ -1,10 +1,12 @@
 /* Dranbleiben — Service Worker: App-Shell offline verfügbar machen */
-var CACHE = "dranbleiben-v1";
+var CACHE = "dranbleiben-v2";
 var ASSETS = [
   ".",
   "index.html",
   "manifest.webmanifest",
-  "icon.svg",
+  "icon-192.png",
+  "icon-512.png",
+  "apple-touch-icon.png",
   "sync.js"
 ];
 
