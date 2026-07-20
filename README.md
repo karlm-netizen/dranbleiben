@@ -5,7 +5,7 @@ Täglicher Ziel-/Habit-Tracker als installierbare PWA: Ziele abhaken, Serien (�
 ## Funktionen (v2)
 
 - **Tages- und Wochen-Ziele** — pro Ziel „täglich" oder „×/Woche" (Fortschrittsbalken pro Woche).
-- **Vergangene Tage nachtragen** — im Heute-Tab per Pfeilen bis zu 60 Tage zurückblättern und abhaken.
+- **Nur heute abhakbar** — bewusst *kein* Nachtragen vergangener Tage. Wer rückwirkend abhaken kann, schummelt sich die Serie zurecht; dann ist sie wertlos.
 - **Ziele verwalten** — im Bearbeiten-Modus umsortieren (↑/↓), umbenennen, Emoji und Häufigkeit ändern, löschen.
 - **Serien & Meilensteine** — „perfekter Tag" = alle Tages-Ziele erledigt; Flammen-Animation, Konfetti und Meilenstein-Hinweise (7/14/30/… Tage). „Perfekter Tag" ignoriert Wochen-Ziele, damit die Serie sauber bleibt.
 - **Statistik** — aktuelle/längste Serie, Konsistenz 30 T., diese Woche, gesamt erledigt, aktive Tage, 12-Wochen-Heatmap, Pro-Ziel-Auswertung.

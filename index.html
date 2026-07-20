@@ -177,22 +177,6 @@
     100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(.4); }
   }
 
-  /* Date navigation */
-  .datenav { display: flex; align-items: center; gap: 8px; margin: 14px 2px 4px; }
-  .datenav .arrow { width: 34px; height: 34px; flex: none; border: 1px solid var(--hairline); background: var(--surface);
-    color: var(--ink); border-radius: 10px; font-size: 17px; cursor: pointer; display: grid; place-items: center;
-    transition: transform .15s, background .15s, opacity .15s; -webkit-tap-highlight-color: transparent; }
-  .datenav .arrow:active { transform: scale(.88); }
-  .datenav .arrow:disabled { opacity: .32; cursor: default; }
-  .datenav .arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .datenav .label { flex: 1; text-align: center; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
-  .datenav .label .sub { display: block; font-family: var(--mono); font-size: 11px; color: var(--faint); font-weight: 500; margin-top: 1px; }
-  .datenav.past .label { color: var(--ember); }
-  .backtoday { display: none; margin: 2px 2px 0; }
-  .backtoday.show { display: block; }
-  .backtoday button { width: 100%; border: 1px dashed color-mix(in srgb, var(--ember) 55%, var(--hairline)); background: var(--ember-soft);
-    color: var(--ember); font-family: var(--sans); font-weight: 650; font-size: 13px; padding: 9px; border-radius: 10px; cursor: pointer; }
-
   /* Goal list */
   .section-label { font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
     color: var(--faint); margin: 20px 2px 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -476,13 +460,6 @@
         </div>
       </div>
     </div>
-
-    <div class="datenav" id="datenav">
-      <button class="arrow" id="day-prev" aria-label="Vorheriger Tag">‹</button>
-      <div class="label" id="day-label">Heute<span class="sub" id="day-sub">—</span></div>
-      <button class="arrow" id="day-next" aria-label="Nächster Tag">›</button>
-    </div>
-    <div class="backtoday" id="backtoday"><button id="backtoday-btn">↩ Zurück zu heute</button></div>
 
     <div class="section-label">Meine Ziele
       <button id="manage-toggle">Bearbeiten</button>
@@ -805,35 +782,12 @@
   var managing = false;
   var wasPerfect = null;
   var lastPf = 0;
-  var viewDate = startOfDay(new Date());   // welcher Tag im Heute-Tab bearbeitet wird
   var firstPaint = true;
-
-  function isToday(d) { return dkey(d) === todayKey(); }
 
   function renderHeader() {
     var d = new Date();
     el("d-weekday").textContent = WD_LONG[d.getDay()];
     el("d-date").textContent = d.getDate() + ". " + MO[d.getMonth()] + " " + d.getFullYear();
-  }
-
-  function renderDateNav() {
-    var today = startOfDay(new Date());
-    var past = !isToday(viewDate);
-    el("datenav").classList.toggle("past", past);
-    el("backtoday").classList.toggle("show", past);
-    el("day-next").disabled = viewDate.getTime() >= today.getTime();
-    // max. 60 Tage zurück
-    el("day-prev").disabled = viewDate.getTime() <= today.getTime() - 60 * DAY;
-    var lbl = el("day-label"), sub = el("day-sub");
-    if (past) {
-      lbl.childNodes[0].nodeValue = WD_LONG[viewDate.getDay()];
-      var done = 0, tot = dailyGoals().length;
-      dailyGoals().forEach(function (g) { if (doneOn(dkey(viewDate), g.id)) done++; });
-      sub.textContent = viewDate.getDate() + ". " + MO[viewDate.getMonth()] + (tot ? "  ·  " + done + "/" + tot : "");
-    } else {
-      lbl.childNodes[0].nodeValue = "Heute";
-      sub.textContent = WD_LONG[viewDate.getDay()] + ", " + viewDate.getDate() + ". " + MO[viewDate.getMonth()];
-    }
   }
 
   function weekPillHTML(g, ref) {
@@ -844,7 +798,7 @@
   }
 
   function buildRow(g) {
-    var vk = dkey(viewDate);
+    var vk = todayKey();
     var done = doneOn(vk, g.id);
     var row = document.createElement("div");
     row.className = "goal" + (done ? " done" : "") + (firstPaint || pendingEnter ? " enter" : "");
@@ -855,7 +809,7 @@
 
     var rightInfo = isDaily(g)
       ? (goalStreak(g.id) > 1 ? '<span class="streak-mini">🔥 ' + goalStreak(g.id) + '</span>' : '')
-      : weekPillHTML(g, viewDate);
+      : weekPillHTML(g, new Date());
 
     row.innerHTML =
       '<span class="emoji"></span>' +
@@ -883,7 +837,7 @@
       var added = toggle(vk, g.id);
       buzz(added ? 14 : 0);
       updateRowAfterToggle(row, g, added);
-      if (isToday(viewDate)) renderSummary(); else { renderSummary(); renderDateNav(); refreshDailyStreaks(); }
+      renderSummary();
     }
     row.addEventListener("click", function (ev) {
       if (managing) return;
@@ -970,7 +924,7 @@
     } else {
       var pill = row.querySelector(".weekpill");
       if (pill) {
-        var n = weekDone(g.id, viewDate), t = g.target;
+        var n = weekDone(g.id, new Date()), t = g.target;
         pill.classList.toggle("met", n >= t);
         pill.querySelector(".bar > i").style.width = Math.min(100, Math.round(n / t * 100)) + "%";
         pill.childNodes[pill.childNodes.length - 1].nodeValue = n + "/" + t;
@@ -1009,7 +963,6 @@
       if (row.classList.contains("enter")) row.style.animationDelay = (i * 0.045) + "s";
       list.appendChild(row);
     });
-    renderDateNav();
     pendingEnter = false;
   }
 
@@ -1213,22 +1166,6 @@
     pendingEnter = false; renderToday();
   });
 
-  // Datums-Navigation
-  el("day-prev").addEventListener("click", function () {
-    viewDate = new Date(viewDate.getTime() - DAY); managing = false;
-    el("view-today").classList.remove("managing"); el("manage-toggle").textContent = "Bearbeiten";
-    pendingEnter = true; renderToday();
-  });
-  el("day-next").addEventListener("click", function () {
-    var t = startOfDay(new Date());
-    if (viewDate.getTime() >= t.getTime()) return;
-    viewDate = new Date(viewDate.getTime() + DAY);
-    pendingEnter = true; renderToday();
-  });
-  el("backtoday-btn").addEventListener("click", function () {
-    viewDate = startOfDay(new Date()); pendingEnter = true; renderToday();
-  });
-
   // Tabs mit Glider
   function switchTab(which) {
     var t = which === "today";
@@ -1298,7 +1235,7 @@
         var s = JSON.parse(r.result);
         if (s && s.goals && s.checks) {
           s.goals.forEach(function (g) { if (typeof g.target !== "number") g.target = 7; });
-          state = s; save(); viewDate = startOfDay(new Date()); renderAll();
+          state = s; save(); renderAll();
           toast("Daten importiert", "📥");
         } else toast("Das sieht nicht wie ein Dranbleiben-Export aus", "⚠️");
       } catch (e) { toast("Import fehlgeschlagen: Datei nicht lesbar", "⚠️"); }
