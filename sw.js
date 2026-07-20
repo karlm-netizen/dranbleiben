@@ -1,5 +1,5 @@
 /* Dranbleiben — Service Worker: App-Shell offline verfügbar machen */
-var CACHE = "dranbleiben-v2";
+var CACHE = "dranbleiben-v3";
 var ASSETS = [
   ".",
   "index.html",
@@ -30,9 +30,17 @@ self.addEventListener("fetch", function (e) {
   var url = new URL(e.request.url);
   // Nur eigene Dateien aus dem Cache bedienen; fremde Hosts (später Supabase) durchlassen
   if (url.origin !== self.location.origin) return;
+  // Netz zuerst, Cache als Rückfall: online immer die aktuelle Version,
+  // offline die zuletzt gespeicherte. (Vorher: Cache zuerst -> Updates kamen nie an.)
   e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      return cached || fetch(e.request).catch(function () { return caches.match("index.html"); });
+    fetch(e.request).then(function (res) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(e.request, copy); }).catch(function () {});
+      return res;
+    }).catch(function () {
+      return caches.match(e.request).then(function (cached) {
+        return cached || caches.match("index.html");
+      });
     })
   );
 });
