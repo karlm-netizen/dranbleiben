@@ -403,6 +403,8 @@
   .mini-btn { border: 1px solid var(--hairline); background: var(--surface); color: var(--muted); font-family: var(--sans);
     font-size: 12.5px; font-weight: 600; padding: 8px 13px; border-radius: 9px; cursor: pointer; transition: transform .1s; }
   .mini-btn:active { transform: scale(.94); }
+  .mini-btn.danger { border-color: color-mix(in srgb, #d64545 55%, var(--hairline)); color: #d64545; }
+  .mini-btn.armed { background: #d64545; border-color: #d64545; color: #fff; }
 
   .sync-in { width: 100%; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 10px;
     padding: 11px 13px; font-family: var(--sans); font-size: 14.5px; color: var(--ink); margin-bottom: 8px; }
@@ -614,7 +616,20 @@
 
   <div class="set-group">
     <div class="gh">Über</div>
-    <p class="hint" style="margin:0">Dranbleiben · läuft offline, deine Daten liegen lokal auf diesem Gerät.</p>
+    <p class="hint" style="margin:0">Dranbleiben · läuft offline. Ohne Anmeldung liegen deine Daten nur auf diesem Gerät; angemeldet werden sie zwischen deinen Geräten abgeglichen.</p>
+  </div>
+
+  <div class="set-group">
+    <div class="gh">Zurücksetzen</div>
+    <div class="set-row" style="border-top:0">
+      <span class="lbl">Statistik zurücksetzen<small>Löscht alle Häkchen und Serien. Deine Ziele bleiben.</small></span>
+      <button class="mini-btn danger" id="reset-stats">Löschen</button>
+    </div>
+    <div class="set-row">
+      <span class="lbl">Alles zurücksetzen<small>Löscht Ziele <em>und</em> Historie — wie frisch installiert.</small></span>
+      <button class="mini-btn danger" id="reset-all">Löschen</button>
+    </div>
+    <div class="sync-msg" id="reset-msg"></div>
   </div>
 
   <button class="btn" id="settings-close" style="width:100%;margin-top:22px">Fertig</button>
@@ -1245,6 +1260,40 @@
   });
   el("set-motion").addEventListener("change", function () {
     settings.motion = this.checked ? "reduced" : "full"; saveSettings();
+  });
+
+  // ---- Zurücksetzen (Doppel-Tipp, damit nichts aus Versehen passiert) ----
+  function armButton(btn, armedLabel, onConfirm) {
+    if (!btn) return;
+    var t = null, original = btn.textContent;
+    btn.addEventListener("click", function () {
+      if (!btn.classList.contains("armed")) {
+        btn.classList.add("armed"); btn.textContent = armedLabel;
+        clearTimeout(t);
+        t = setTimeout(function () { btn.classList.remove("armed"); btn.textContent = original; }, 4000);
+        return;
+      }
+      clearTimeout(t); btn.classList.remove("armed"); btn.textContent = original;
+      onConfirm();
+    });
+  }
+  function resetMsg(m) {
+    var e = el("reset-msg"); if (!e) return;
+    e.textContent = m || ""; e.className = "sync-msg ok";
+    clearTimeout(resetMsg._t); resetMsg._t = setTimeout(function () { e.textContent = ""; }, 4000);
+  }
+  function applyReset(newState, text) {
+    state = newState;
+    saveLocal(); markDirty(); schedulePush();   // auch in der Cloud überschreiben
+    renderAll(); refreshStatsIfVisible();
+    resetMsg(text);
+    buzz([12, 30, 12]);
+  }
+  armButton(el("reset-stats"), "Wirklich?", function () {
+    applyReset({ goals: state.goals, checks: {} }, "Statistik gelöscht — Ziele sind geblieben.");
+  });
+  armButton(el("reset-all"), "Wirklich?", function () {
+    applyReset({ goals: [], checks: {} }, "Alles gelöscht. Leg unten dein erstes Ziel an.");
   });
 
   // Export / Import
