@@ -9,7 +9,7 @@ Täglicher Ziel-/Habit-Tracker als installierbare PWA: Ziele abhaken, Serien (�
 - **Ziele verwalten** — im Bearbeiten-Modus umsortieren (↑/↓), umbenennen, Emoji und Häufigkeit ändern, löschen.
 - **Serien & Meilensteine** — „perfekter Tag" = alle Tages-Ziele erledigt; Flammen-Animation, Konfetti und Meilenstein-Hinweise (7/14/30/… Tage). „Perfekter Tag" ignoriert Wochen-Ziele, damit die Serie sauber bleibt.
 - **Statistik** — aktuelle/längste Serie, Konsistenz 30 T., diese Woche, gesamt erledigt, aktive Tage, 12-Wochen-Heatmap, Pro-Ziel-Auswertung.
-- **Extras** — Theme-Umschalter (auto/hell/dunkel), Haptik auf dem Handy, viele Mikro-Animationen, Export/Import (JSON).
+- **Extras** — Theme-Umschalter (auto/hell/dunkel), Vibration am Handy als einzige Rückmeldung (bewusst kein Ton), viele Mikro-Animationen, Export/Import (JSON).
 
 ## Struktur
 

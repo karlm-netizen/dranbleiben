@@ -625,13 +625,6 @@
   <div class="set-group">
     <div class="gh">Feedback</div>
     <div class="set-row">
-      <span class="lbl">Sound<small>Töne beim Abhaken & perfekten Tag</small></span>
-      <span style="display:flex;gap:9px;align-items:center;flex:none">
-        <button class="mini-btn" id="sound-test">Probe</button>
-        <label class="switch"><input type="checkbox" id="set-sound"><span class="track"></span></label>
-      </span>
-    </div>
-    <div class="set-row">
       <span class="lbl">Feier-Bildschirm<small>Ansehen, ohne den Tag abzuschließen</small></span>
       <button class="mini-btn" id="celebrate-test">Vorschau</button>
     </div>
@@ -816,7 +809,6 @@
       var old = null; try { old = localStorage.getItem("dranbleiben.theme"); } catch (e) {}
       s.theme = (old === "light" || old === "dark") ? old : "auto";
     }
-    if (typeof s.sound !== "boolean") s.sound = false;    // Sound standardmäßig aus
     if (typeof s.haptics !== "boolean") s.haptics = true; // Vibration an
     if (s.motion !== "reduced" && s.motion !== "full") s.motion = "full";
     return s;
@@ -829,110 +821,6 @@
     try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
   }
   function buzz(ms) { try { if (settings.haptics && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
-
-  // ---- Klang: kleine Synthese-Engine (kein externer Download, CSP-sicher) ----
-  var actx = null, master = null, masterRaw = null, noiseBuf = null;
-  function audio() {
-    if (!actx) {
-      actx = new (window.AudioContext || window.webkitAudioContext)();
-      // Ausgang für Töne: mit Tiefpass, nimmt die Schärfe raus
-      master = actx.createGain();
-      master.gain.value = 0.85;
-      var lp = actx.createBiquadFilter();
-      lp.type = "lowpass"; lp.frequency.value = 3600; lp.Q.value = 0.5;
-      master.connect(lp); lp.connect(actx.destination);
-      // Ausgang für Rauschen: ohne Tiefpass, sonst klingt Feuer wie unter einer Decke
-      masterRaw = actx.createGain();
-      masterRaw.gain.value = 0.9;
-      masterRaw.connect(actx.destination);
-    }
-    if (actx.state === "suspended") actx.resume();
-    return actx;
-  }
-
-  // Zwei Sekunden weißes Rauschen, einmal erzeugt und immer wieder verwendet
-  function noise() {
-    if (!noiseBuf) {
-      var len = Math.floor(actx.sampleRate * 2);
-      noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
-      var d = noiseBuf.getChannelData(0);
-      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    }
-    return noiseBuf;
-  }
-
-  // Ein Glockenton: Grundton plus zwei leise Obertöne, weicher Einsatz, langes Ausklingen.
-  // Die leichte Verstimmung (2.01 statt 2.0) gibt das typische Schimmern.
-  function bell(freq, start, dur, vol) {
-    [[1, 1, dur], [2.01, 0.26, dur * 0.62], [2.99, 0.08, dur * 0.4]].forEach(function (p) {
-      var o = actx.createOscillator(), g = actx.createGain();
-      o.type = "sine"; o.frequency.value = freq * p[0];
-      var v = Math.max(0.0002, vol * p[1]), d = p[2];
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(v, start + 0.014);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + d);
-      o.connect(g); g.connect(master);
-      o.start(start); o.stop(start + d + 0.06);
-    });
-  }
-
-  function soundTick() {                      // beim Abhaken: kurz und dezent
-    if (!settings.sound) return;
-    try { audio(); bell(1046.5, actx.currentTime, 0.22, 0.055); } catch (e) {}
-  }
-
-  // Perfekter Tag: Auflodern einer Flamme.
-  // Feuer ist kein Ton, sondern gefiltertes Rauschen — darum Rauschquellen statt Oszillatoren.
-  function soundPerfect(force) {
-    if (!settings.sound && !force) return;
-    try {
-      audio();
-      var t0 = actx.currentTime + 0.01;
-
-      // a) Das Auflodern: Rauschen durch ein wanderndes Bandpassfilter.
-      //    Die Filterfahrt nach oben und wieder herunter erzeugt das "Fwoosh".
-      var air = actx.createBufferSource();
-      air.buffer = noise(); air.loop = true;
-      var bp = actx.createBiquadFilter();
-      bp.type = "bandpass"; bp.Q.value = 0.75;
-      bp.frequency.setValueAtTime(280, t0);
-      bp.frequency.exponentialRampToValueAtTime(2400, t0 + 0.30);
-      bp.frequency.exponentialRampToValueAtTime(420, t0 + 1.35);
-      var ag = actx.createGain();
-      ag.gain.setValueAtTime(0.0001, t0);
-      ag.gain.exponentialRampToValueAtTime(0.42, t0 + 0.11);
-      ag.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.45);
-      air.connect(bp); bp.connect(ag); ag.connect(masterRaw);
-      air.start(t0, Math.random()); air.stop(t0 + 1.5);
-
-      // b) Tiefes Grollen für Wucht
-      var low = actx.createBufferSource();
-      low.buffer = noise(); low.loop = true;
-      var lp2 = actx.createBiquadFilter();
-      lp2.type = "lowpass"; lp2.frequency.value = 190; lp2.Q.value = 0.8;
-      var lg = actx.createGain();
-      lg.gain.setValueAtTime(0.0001, t0);
-      lg.gain.exponentialRampToValueAtTime(0.30, t0 + 0.14);
-      lg.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
-      low.connect(lp2); lp2.connect(lg); lg.connect(masterRaw);
-      low.start(t0, Math.random()); low.stop(t0 + 1.25);
-
-      // c) Knistern: kurze, helle Rauschsplitter — das macht aus Wind erst Feuer
-      for (var i = 0; i < 16; i++) {
-        var when = t0 + 0.12 + Math.random() * 1.05;
-        var cr = actx.createBufferSource();
-        cr.buffer = noise();
-        var hp = actx.createBiquadFilter();
-        hp.type = "highpass"; hp.frequency.value = 1800 + Math.random() * 2600;
-        var cg = actx.createGain();
-        var amp = 0.05 + Math.random() * 0.075;
-        cg.gain.setValueAtTime(amp, when);
-        cg.gain.exponentialRampToValueAtTime(0.0001, when + 0.055);
-        cr.connect(hp); hp.connect(cg); cg.connect(masterRaw);
-        cr.start(when, Math.random() * 1.8); cr.stop(when + 0.06);
-      }
-    } catch (e) {}
-  }
 
   var state = load();
   function load() {
@@ -1166,7 +1054,6 @@
   }
 
   function updateRowAfterToggle(row, g, added) {
-    if (added) soundTick();
     row.classList.toggle("done", added);
     row.setAttribute("aria-pressed", added ? "true" : "false");
     row.classList.add("just");
@@ -1337,8 +1224,7 @@
     if (perfect && wasPerfect === false) {
       summary.classList.remove("burst"); void summary.offsetWidth; summary.classList.add("burst");
       setTimeout(function () { summary.classList.remove("burst"); }, 950);
-      buzz([18, 40, 22]);
-      soundPerfect();
+      buzz([28, 45, 28, 45, 70]);   // einziges Feedback -> spürbarer
       showBigFlame(ps, MILESTONES.indexOf(ps) !== -1);
     }
     wasPerfect = perfect;
@@ -1499,7 +1385,6 @@
     document.querySelectorAll("#seg-theme button").forEach(function (b) {
       b.setAttribute("aria-pressed", b.dataset.themeVal === settings.theme ? "true" : "false");
     });
-    el("set-sound").checked = settings.sound;
     el("set-haptics").checked = settings.haptics;
     el("set-motion").checked = settings.motion === "reduced";
   }
@@ -1517,19 +1402,12 @@
       settings.theme = b.dataset.themeVal; saveSettings(); applyTheme(settings.theme); syncSettingsUI();
     });
   });
-  el("set-sound").addEventListener("change", function () {
-    settings.sound = this.checked; saveSettings(); if (this.checked) soundPerfect();
-  });
-  if (el("sound-test")) {
-    el("sound-test").addEventListener("click", function () { soundPerfect(true); });
-  }
   if (el("celebrate-test")) {
     el("celebrate-test").addEventListener("click", function () {
       closeSettings();
       setTimeout(function () {
         var s = perfectStreak(); if (s < 1) s = 1;
         showBigFlame(s, MILESTONES.indexOf(s) !== -1);
-        soundPerfect(true);
       }, 300);
     });
   }
