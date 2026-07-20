@@ -449,6 +449,40 @@
     border-radius: var(--radius-sm); display: grid; place-items: center; cursor: pointer; color: var(--ink); }
   .icon-pick svg { width: 21px; height: 21px; }
 
+  /* Feier-Bildschirm: große Flamme, Zahl, Wochenleiste */
+  .bigflame { background: #14181A; }
+  .bf-art { position: relative; width: 208px; margin: 0 auto; }
+  .bf-svg { width: 100%; height: auto; display: block;
+    filter: drop-shadow(0 14px 34px rgba(249,115,22,.42)); }
+  .fl-outer, .fl-inner, .fl-lick { transform-box: fill-box; }
+  .fl-outer { transform-origin: 50% 95%; animation: flick 1.5s ease-in-out infinite; }
+  .fl-inner { transform-origin: 50% 95%; animation: flick 1.02s ease-in-out infinite; }
+  .fl-lick  { transform-origin: 50% 100%; animation: lick 2.1s ease-in-out infinite; }
+  .fl-lick.l2 { animation-duration: 1.55s; animation-delay: .45s; }
+  @keyframes lick {
+    0%, 100% { transform: translateY(0) scale(1); opacity: .92; }
+    50% { transform: translateY(-7px) scale(1.14); opacity: 1; }
+  }
+  .bf-num { position: absolute; left: 0; right: 0; bottom: -4px; text-align: center; line-height: 1;
+    font-size: 66px; font-weight: 800; letter-spacing: -.045em; color: #fff;
+    -webkit-text-stroke: 8px #14181A; paint-order: stroke fill; }
+  .bf-label { font-size: 28px; font-weight: 800; letter-spacing: -.025em; color: #fff; margin-top: 6px; }
+  .bf-week { width: 100%; max-width: 304px; margin: 28px auto 0; }
+  .bf-days { display: grid; grid-template-columns: repeat(7, 1fr); font-family: var(--mono);
+    font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,.5); margin-bottom: 10px; }
+  .bf-days span.now { color: #FB8B1E; }
+  .bf-bar { position: relative; height: 13px; border-radius: 8px; background: rgba(255,255,255,.15); }
+  .bf-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 8px;
+    background: linear-gradient(90deg, #F4670C, #FFC24B); transition: width .85s cubic-bezier(.3,1,.4,1); }
+  .bf-bar .spark { position: absolute; left: 0; top: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px;
+    border-radius: 50%; background: radial-gradient(circle, #fff 0 32%, #FFC94B 58%, transparent 72%);
+    box-shadow: 0 0 16px 5px rgba(255,201,75,.55); transition: left .85s cubic-bezier(.3,1,.4,1); }
+  .bf-note { color: rgba(255,255,255,.78); font-size: 14.5px; line-height: 1.5; margin: 24px auto 0; max-width: 300px; }
+  .bf-cta { display: block; width: 100%; max-width: 304px; margin: 30px auto 0; border: 0; border-radius: 14px;
+    background: #fff; color: #14181A; font-family: var(--sans); font-weight: 750; font-size: 16px;
+    padding: 16px; cursor: pointer; transition: transform .12s; }
+  .bf-cta:active { transform: scale(.97); }
+
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 </style>
@@ -598,6 +632,10 @@
       </span>
     </div>
     <div class="set-row">
+      <span class="lbl">Feier-Bildschirm<small>Ansehen, ohne den Tag abzuschließen</small></span>
+      <button class="mini-btn" id="celebrate-test">Vorschau</button>
+    </div>
+    <div class="set-row">
       <span class="lbl">Vibration<small>Haptisches Feedback am Handy</small></span>
       <label class="switch"><input type="checkbox" id="set-haptics"><span class="track"></span></label>
     </div>
@@ -667,17 +705,30 @@
 
 <div class="bigflame" id="bigflame" aria-hidden="true">
   <div class="bf-inner">
-    <div class="bf-flame">
-      <div class="bf-glow"></div>
-      <div class="bf-fl outer"></div>
-      <div class="bf-fl mid"></div>
-      <div class="bf-fl inner"></div>
-      <span class="bf-spark k1"></span><span class="bf-spark k2"></span><span class="bf-spark k3"></span>
-      <span class="bf-spark k4"></span><span class="bf-spark k5"></span>
+    <div class="bf-art">
+      <svg class="bf-svg" viewBox="0 0 160 200" aria-hidden="true">
+        <defs>
+          <linearGradient id="flOut" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#F4670C"/><stop offset="55%" stop-color="#FB8B1E"/><stop offset="100%" stop-color="#FFC24B"/>
+          </linearGradient>
+          <linearGradient id="flIn" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#FFAF1E"/><stop offset="100%" stop-color="#FFE783"/>
+          </linearGradient>
+        </defs>
+        <g transform="translate(58,6) scale(1.2)"><g class="fl-lick l1"><path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16z" fill="#FFC94B"/></g></g>
+        <g transform="translate(88,24) scale(.85)"><g class="fl-lick l2"><path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16z" fill="#FB8B1E"/></g></g>
+        <g transform="translate(20,52) scale(7.5)"><g class="fl-outer"><path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16z" fill="url(#flOut)"/></g></g>
+        <g transform="translate(56,104) scale(3.2)"><g class="fl-inner"><path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16z" fill="url(#flIn)"/></g></g>
+      </svg>
+      <div class="bf-num" id="bf-n">0</div>
     </div>
-    <div class="bf-msg" id="bf-msg">Perfekter Tag!</div>
-    <div class="bf-streak"><span class="n" id="bf-n">0</span><span class="l" id="bf-nl">Tage Serie</span></div>
-    <div class="bf-hint">Tippen zum Schließen</div>
+    <div class="bf-label" id="bf-nl">Tage in Folge</div>
+    <div class="bf-week">
+      <div class="bf-days" id="bf-days"></div>
+      <div class="bf-bar"><i class="fill" id="bf-fill"></i><span class="spark" id="bf-spark"></span></div>
+    </div>
+    <div class="bf-note" id="bf-msg">Perfekter Tag!</div>
+    <button class="bf-cta" id="bf-cta">Ich bleibe dran</button>
   </div>
 </div>
 
@@ -1155,17 +1206,38 @@
 
   // Große Flamme in der Bildschirmmitte beim perfekten Tag
   var bigTimer = null;
+  var WD_SHORT = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
   function showBigFlame(streak, milestone) {
     var o = el("bigflame");
     el("bf-n").textContent = streak;
-    el("bf-nl").textContent = (streak === 1 ? "Tag Serie" : "Tage Serie");
-    el("bf-msg").innerHTML = milestone ? (svg("medal", "s16") + " Meilenstein — " + streak + " Tage!") : "Perfekter Tag!";
+    el("bf-nl").textContent = (streak === 1 ? "Tag in Folge" : "Tage in Folge");
+    el("bf-msg").textContent = milestone
+      ? ("Meilenstein! " + streak + " Tage am Stück.")
+      : (streak <= 1 ? "Glückwunsch, deine Serie hat begonnen. Bleib dran!"
+                     : streak + " Tage am Stück. Bleib dran!");
+
+    // Wochenleiste: aktueller Tag hervorgehoben, Balken bis dorthin
+    var dow = (new Date().getDay() + 6) % 7;      // Montag = 0
+    var days = el("bf-days"); days.innerHTML = "";
+    WD_SHORT.forEach(function (d, i) {
+      var s = document.createElement("span");
+      s.textContent = d;
+      if (i === dow) s.className = "now";
+      days.appendChild(s);
+    });
+    var pct = ((dow + 0.5) / 7) * 100;
+    var fill = el("bf-fill"), spark = el("bf-spark");
+    fill.style.width = "0"; spark.style.left = "0";
+
     o.classList.add("show");
+    setTimeout(function () { fill.style.width = pct + "%"; spark.style.left = pct + "%"; }, 280);
     fireConfetti(o, 34, 3.4);
     clearTimeout(bigTimer);
-    bigTimer = setTimeout(function () { o.classList.remove("show"); }, milestone ? 4200 : 3000);
+    bigTimer = setTimeout(function () { o.classList.remove("show"); }, 12000);
   }
-  el("bigflame").addEventListener("click", function () { this.classList.remove("show"); clearTimeout(bigTimer); });
+  function closeBigFlame() { el("bigflame").classList.remove("show"); clearTimeout(bigTimer); }
+  el("bf-cta").addEventListener("click", function (ev) { ev.stopPropagation(); closeBigFlame(); });
+  el("bigflame").addEventListener("click", closeBigFlame);
 
   function renderSummary() {
     var tk = todayKey();
@@ -1393,6 +1465,16 @@
   });
   if (el("sound-test")) {
     el("sound-test").addEventListener("click", function () { soundPerfect(true); });
+  }
+  if (el("celebrate-test")) {
+    el("celebrate-test").addEventListener("click", function () {
+      closeSettings();
+      setTimeout(function () {
+        var s = perfectStreak(); if (s < 1) s = 1;
+        showBigFlame(s, MILESTONES.indexOf(s) !== -1);
+        soundPerfect(true);
+      }, 300);
+    });
   }
   el("set-haptics").addEventListener("change", function () {
     settings.haptics = this.checked; saveSettings(); if (this.checked) buzz(16);
