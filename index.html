@@ -831,18 +831,34 @@
   function buzz(ms) { try { if (settings.haptics && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   // ---- Klang: kleine Synthese-Engine (kein externer Download, CSP-sicher) ----
-  var actx = null, master = null;
+  var actx = null, master = null, masterRaw = null, noiseBuf = null;
   function audio() {
     if (!actx) {
       actx = new (window.AudioContext || window.webkitAudioContext)();
+      // Ausgang für Töne: mit Tiefpass, nimmt die Schärfe raus
       master = actx.createGain();
       master.gain.value = 0.85;
-      var lp = actx.createBiquadFilter();      // nimmt die Schärfe raus
+      var lp = actx.createBiquadFilter();
       lp.type = "lowpass"; lp.frequency.value = 3600; lp.Q.value = 0.5;
       master.connect(lp); lp.connect(actx.destination);
+      // Ausgang für Rauschen: ohne Tiefpass, sonst klingt Feuer wie unter einer Decke
+      masterRaw = actx.createGain();
+      masterRaw.gain.value = 0.9;
+      masterRaw.connect(actx.destination);
     }
     if (actx.state === "suspended") actx.resume();
     return actx;
+  }
+
+  // Zwei Sekunden weißes Rauschen, einmal erzeugt und immer wieder verwendet
+  function noise() {
+    if (!noiseBuf) {
+      var len = Math.floor(actx.sampleRate * 2);
+      noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
   }
 
   // Ein Glockenton: Grundton plus zwei leise Obertöne, weicher Einsatz, langes Ausklingen.
@@ -865,15 +881,56 @@
     try { audio(); bell(1046.5, actx.currentTime, 0.22, 0.055); } catch (e) {}
   }
 
-  function soundPerfect(force) {              // perfekter Tag: aufsteigendes Glockenspiel
+  // Perfekter Tag: Auflodern einer Flamme.
+  // Feuer ist kein Ton, sondern gefiltertes Rauschen — darum Rauschquellen statt Oszillatoren.
+  function soundPerfect(force) {
     if (!settings.sound && !force) return;
     try {
       audio();
-      var t0 = actx.currentTime + 0.02;
-      [523.25, 659.25, 783.99, 1046.50].forEach(function (f, i) {
-        bell(f, t0 + i * 0.095, 1.6 - i * 0.12, 0.115 - i * 0.012);
-      });
-      bell(130.81, t0, 2.0, 0.05);            // warmer Grundton darunter
+      var t0 = actx.currentTime + 0.01;
+
+      // a) Das Auflodern: Rauschen durch ein wanderndes Bandpassfilter.
+      //    Die Filterfahrt nach oben und wieder herunter erzeugt das "Fwoosh".
+      var air = actx.createBufferSource();
+      air.buffer = noise(); air.loop = true;
+      var bp = actx.createBiquadFilter();
+      bp.type = "bandpass"; bp.Q.value = 0.75;
+      bp.frequency.setValueAtTime(280, t0);
+      bp.frequency.exponentialRampToValueAtTime(2400, t0 + 0.30);
+      bp.frequency.exponentialRampToValueAtTime(420, t0 + 1.35);
+      var ag = actx.createGain();
+      ag.gain.setValueAtTime(0.0001, t0);
+      ag.gain.exponentialRampToValueAtTime(0.42, t0 + 0.11);
+      ag.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.45);
+      air.connect(bp); bp.connect(ag); ag.connect(masterRaw);
+      air.start(t0, Math.random()); air.stop(t0 + 1.5);
+
+      // b) Tiefes Grollen für Wucht
+      var low = actx.createBufferSource();
+      low.buffer = noise(); low.loop = true;
+      var lp2 = actx.createBiquadFilter();
+      lp2.type = "lowpass"; lp2.frequency.value = 190; lp2.Q.value = 0.8;
+      var lg = actx.createGain();
+      lg.gain.setValueAtTime(0.0001, t0);
+      lg.gain.exponentialRampToValueAtTime(0.30, t0 + 0.14);
+      lg.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
+      low.connect(lp2); lp2.connect(lg); lg.connect(masterRaw);
+      low.start(t0, Math.random()); low.stop(t0 + 1.25);
+
+      // c) Knistern: kurze, helle Rauschsplitter — das macht aus Wind erst Feuer
+      for (var i = 0; i < 16; i++) {
+        var when = t0 + 0.12 + Math.random() * 1.05;
+        var cr = actx.createBufferSource();
+        cr.buffer = noise();
+        var hp = actx.createBiquadFilter();
+        hp.type = "highpass"; hp.frequency.value = 1800 + Math.random() * 2600;
+        var cg = actx.createGain();
+        var amp = 0.05 + Math.random() * 0.075;
+        cg.gain.setValueAtTime(amp, when);
+        cg.gain.exponentialRampToValueAtTime(0.0001, when + 0.055);
+        cr.connect(hp); hp.connect(cg); cg.connect(masterRaw);
+        cr.start(when, Math.random() * 1.8); cr.stop(when + 0.06);
+      }
     } catch (e) {}
   }
 
