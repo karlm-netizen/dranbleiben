@@ -565,7 +565,10 @@
     <div class="gh">Feedback</div>
     <div class="set-row">
       <span class="lbl">Sound<small>Töne beim Abhaken & perfekten Tag</small></span>
-      <label class="switch"><input type="checkbox" id="set-sound"><span class="track"></span></label>
+      <span style="display:flex;gap:9px;align-items:center;flex:none">
+        <button class="mini-btn" id="sound-test">Probe</button>
+        <label class="switch"><input type="checkbox" id="set-sound"><span class="track"></span></label>
+      </span>
     </div>
     <div class="set-row">
       <span class="lbl">Vibration<small>Haptisches Feedback am Handy</small></span>
@@ -693,24 +696,50 @@
   }
   function buzz(ms) { try { if (settings.haptics && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
-  // Sound per WebAudio erzeugt (kein externer Download, CSP-sicher)
-  var actx = null;
-  function tone(freqs, dur, vol) {
+  // ---- Klang: kleine Synthese-Engine (kein externer Download, CSP-sicher) ----
+  var actx = null, master = null;
+  function audio() {
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain();
+      master.gain.value = 0.85;
+      var lp = actx.createBiquadFilter();      // nimmt die Schärfe raus
+      lp.type = "lowpass"; lp.frequency.value = 3600; lp.Q.value = 0.5;
+      master.connect(lp); lp.connect(actx.destination);
+    }
+    if (actx.state === "suspended") actx.resume();
+    return actx;
+  }
+
+  // Ein Glockenton: Grundton plus zwei leise Obertöne, weicher Einsatz, langes Ausklingen.
+  // Die leichte Verstimmung (2.01 statt 2.0) gibt das typische Schimmern.
+  function bell(freq, start, dur, vol) {
+    [[1, 1, dur], [2.01, 0.26, dur * 0.62], [2.99, 0.08, dur * 0.4]].forEach(function (p) {
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = "sine"; o.frequency.value = freq * p[0];
+      var v = Math.max(0.0002, vol * p[1]), d = p[2];
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(v, start + 0.014);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + d);
+      o.connect(g); g.connect(master);
+      o.start(start); o.stop(start + d + 0.06);
+    });
+  }
+
+  function soundTick() {                      // beim Abhaken: kurz und dezent
     if (!settings.sound) return;
+    try { audio(); bell(1046.5, actx.currentTime, 0.22, 0.055); } catch (e) {}
+  }
+
+  function soundPerfect(force) {              // perfekter Tag: aufsteigendes Glockenspiel
+    if (!settings.sound && !force) return;
     try {
-      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-      if (actx.state === "suspended") actx.resume();
-      var t0 = actx.currentTime;
-      freqs.forEach(function (f, i) {
-        var o = actx.createOscillator(), g = actx.createGain();
-        o.type = "sine"; o.frequency.value = f;
-        var st = t0 + i * 0.085;
-        g.gain.setValueAtTime(0.0001, st);
-        g.gain.exponentialRampToValueAtTime(vol || 0.14, st + 0.015);
-        g.gain.exponentialRampToValueAtTime(0.0001, st + (dur || 0.26));
-        o.connect(g); g.connect(actx.destination);
-        o.start(st); o.stop(st + (dur || 0.26) + 0.03);
+      audio();
+      var t0 = actx.currentTime + 0.02;
+      [523.25, 659.25, 783.99, 1046.50].forEach(function (f, i) {
+        bell(f, t0 + i * 0.095, 1.6 - i * 0.12, 0.115 - i * 0.012);
       });
+      bell(130.81, t0, 2.0, 0.05);            // warmer Grundton darunter
     } catch (e) {}
   }
 
@@ -946,7 +975,7 @@
   }
 
   function updateRowAfterToggle(row, g, added) {
-    if (added) tone([880], 0.13, 0.07);
+    if (added) soundTick();
     row.classList.toggle("done", added);
     row.setAttribute("aria-pressed", added ? "true" : "false");
     row.classList.add("just");
@@ -1097,7 +1126,7 @@
       summary.classList.remove("burst"); void summary.offsetWidth; summary.classList.add("burst");
       setTimeout(function () { summary.classList.remove("burst"); }, 950);
       buzz([18, 40, 22]);
-      tone([523.25, 659.25, 783.99, 1046.5], 0.34, 0.16);
+      soundPerfect();
       showBigFlame(ps, MILESTONES.indexOf(ps) !== -1);
     }
     wasPerfect = perfect;
@@ -1253,8 +1282,11 @@
     });
   });
   el("set-sound").addEventListener("change", function () {
-    settings.sound = this.checked; saveSettings(); if (this.checked) tone([880, 1175], 0.16, 0.1);
+    settings.sound = this.checked; saveSettings(); if (this.checked) soundPerfect();
   });
+  if (el("sound-test")) {
+    el("sound-test").addEventListener("click", function () { soundPerfect(true); });
+  }
   el("set-haptics").addEventListener("change", function () {
     settings.haptics = this.checked; saveSettings(); if (this.checked) buzz(16);
   });
