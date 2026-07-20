@@ -419,6 +419,14 @@
     font-size: 12.5px; font-weight: 600; padding: 8px 13px; border-radius: 9px; cursor: pointer; transition: transform .1s; }
   .mini-btn:active { transform: scale(.94); }
 
+  .sync-in { width: 100%; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 11px 13px; font-family: var(--sans); font-size: 14.5px; color: var(--ink); margin-bottom: 8px; }
+  .sync-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  .sync-msg { font-size: 12.5px; margin-top: 10px; line-height: 1.45; color: var(--muted); }
+  .sync-msg:empty { margin: 0; }
+  .sync-msg.err { color: #d64545; }
+  .sync-msg.ok { color: var(--accent); }
+
   .hidden { display: none !important; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 </style>
@@ -572,6 +580,31 @@
   </div>
 
   <div class="set-group">
+    <div class="gh">Geräte-Sync</div>
+
+    <p class="hint" id="sync-off" style="margin:0">Noch nicht eingerichtet — deine Ziele liegen nur auf diesem Gerät.</p>
+
+    <div id="sync-login" class="hidden">
+      <p class="hint" style="margin:0 0 10px">Melde dich auf allen Geräten mit derselben E-Mail an — dann sind deine Ziele überall gleich.</p>
+      <input class="sync-in" id="sync-email" type="email" placeholder="E-Mail" autocomplete="username" autocapitalize="none" spellcheck="false">
+      <input class="sync-in" id="sync-pw" type="password" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password">
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="sync-signin" style="flex:1">Anmelden</button>
+        <button class="mini-btn" id="sync-signup" style="flex:1">Neu registrieren</button>
+      </div>
+      <div class="sync-msg" id="sync-msg"></div>
+    </div>
+
+    <div id="sync-on" class="hidden">
+      <div class="set-row" style="border-top:0">
+        <span class="lbl">Angemeldet<small id="sync-email-shown">—</small></span>
+        <button class="mini-btn" id="sync-signout">Abmelden</button>
+      </div>
+      <div class="sync-msg" id="sync-status"></div>
+    </div>
+  </div>
+
+  <div class="set-group">
     <div class="gh">Über</div>
     <p class="hint" style="margin:0">Dranbleiben · läuft offline, deine Daten liegen lokal auf diesem Gerät.</p>
   </div>
@@ -601,6 +634,7 @@
 (function () {
   "use strict";
   var KEY = "dranbleiben.v1";
+  var DIRTY_KEY = "dranbleiben.dirty";
   var DAY = 86400000;
   var WD_LONG = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
   var MO = ["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
@@ -671,10 +705,8 @@
     s.goals.forEach(function (g) { if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7; });
     return s;
   }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-    if (window.Remote && Remote.push) { try { Remote.push(state); } catch (e) {} }
-  }
+  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function save() { saveLocal(); markDirty(); schedulePush(); }
 
   function isDaily(g) { return (g.target || 7) >= 7; }
   function dailyGoals() { return state.goals.filter(isDaily); }
@@ -1278,15 +1310,137 @@
   renderAll();
   firstPaint = false;
 
-  // Cloud-Sync: aktiv nur, wenn sync.js window.Remote gesetzt hat (sonst rein lokal)
-  if (window.Remote && Remote.pull) {
-    Remote.pull().then(function (remote) {
-      if (remote && remote.goals && remote.checks) {
-        remote.goals.forEach(function (g) { if (typeof g.target !== "number") g.target = 7; });
-        state = remote; save(); renderAll();
-        if (!el("view-stats").classList.contains("hidden")) renderStats();
+  // ================= Geräte-Sync =================
+  function syncReady() { return !!(window.Remote && Remote.configured && Remote.configured()); }
+  function syncActive() { return syncReady() && !!Remote.user(); }
+
+  function refreshStatsIfVisible() { if (!el("view-stats").classList.contains("hidden")) renderStats(); }
+  function syncStatus(msg, cls) {
+    var e = el("sync-status"); if (!e) return;
+    e.textContent = msg || ""; e.className = "sync-msg" + (cls ? " " + cls : "");
+  }
+  function syncMsg(msg, cls) {
+    var e = el("sync-msg"); if (!e) return;
+    e.textContent = msg || ""; e.className = "sync-msg" + (cls ? " " + cls : "");
+  }
+  function nowTime() { return new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); }
+
+  // "dirty" = lokal geändert, aber noch nicht erfolgreich hochgeladen
+  function isDirty() { try { return !!localStorage.getItem(DIRTY_KEY); } catch (e) { return false; } }
+  function markDirty() { try { localStorage.setItem(DIRTY_KEY, String(Date.now())); } catch (e) {} }
+  function clearDirty() { try { localStorage.removeItem(DIRTY_KEY); } catch (e) {} }
+
+  var pushTimer = null;
+  function schedulePush() {
+    if (!syncActive()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      Remote.push(state).then(function (ok) {
+        if (ok) { clearDirty(); syncStatus("Gesichert · " + nowTime()); }
+      }).catch(function () { syncStatus("Noch nicht gesichert — offline?", "err"); });
+    }, 900);
+  }
+
+  function normalizeState(s) {
+    if (!s || !Array.isArray(s.goals) || !s.checks) return null;
+    s.goals.forEach(function (g) { if (typeof g.target !== "number" || g.target < 1 || g.target > 7) g.target = 7; });
+    return s;
+  }
+
+  // Zusammenführen, wenn beide Seiten unabhängig geändert wurden:
+  // Ziele vereinigen (entferntes zuerst), Häkchen pro Tag vereinigen — so geht nichts verloren.
+  function mergeStates(local, remote) {
+    var byId = {}, goals = [];
+    remote.goals.forEach(function (g) { if (!byId[g.id]) { byId[g.id] = g; goals.push(g); } });
+    local.goals.forEach(function (g) { if (!byId[g.id]) { byId[g.id] = g; goals.push(g); } });
+    var checks = {};
+    [remote.checks, local.checks].forEach(function (src) {
+      Object.keys(src || {}).forEach(function (k) {
+        var list = checks[k] || (checks[k] = []);
+        (src[k] || []).forEach(function (id) { if (byId[id] && list.indexOf(id) === -1) list.push(id); });
+      });
+    });
+    Object.keys(checks).forEach(function (k) { if (!checks[k].length) delete checks[k]; });
+    return { goals: goals, checks: checks };
+  }
+
+  var pulling = false;
+  function syncPull(quiet) {
+    if (!syncActive() || pulling) return Promise.resolve();
+    pulling = true;
+    return Remote.pull().then(function (row) {
+      var remote = row && normalizeState(row.data);
+      if (!remote) { markDirty(); schedulePush(); return; }   // noch nichts in der Cloud
+      if (isDirty()) {
+        state = mergeStates(state, remote);
+        saveLocal(); renderAll(); refreshStatsIfVisible();
+        schedulePush();
+      } else if (JSON.stringify(remote) !== JSON.stringify(state)) {
+        state = remote; saveLocal(); renderAll(); refreshStatsIfVisible();
+        syncStatus("Aktualisiert · " + nowTime());
+      } else if (!quiet) {
+        syncStatus("Aktuell · " + nowTime());
       }
-    }).catch(function () {});
+    }).catch(function (e) {
+      if (!quiet) syncStatus((e && e.message) || "Sync-Fehler", "err");
+    }).then(function () { pulling = false; });
+  }
+
+  function updateSyncUI() {
+    if (!el("sync-off")) return;
+    var cfg = syncReady(), usr = cfg && Remote.user();
+    el("sync-off").classList.toggle("hidden", !!cfg);
+    el("sync-login").classList.toggle("hidden", !cfg || !!usr);
+    el("sync-on").classList.toggle("hidden", !usr);
+    if (usr) el("sync-email-shown").textContent = usr.email || "";
+  }
+
+  function authError(e) {
+    var m = (e && e.message) || "Unbekannter Fehler";
+    if (/Invalid login/i.test(m)) return "E-Mail oder Passwort stimmt nicht.";
+    if (/already registered|already been registered/i.test(m)) return "Diese E-Mail ist schon registriert — nimm „Anmelden\".";
+    if (/Password should be/i.test(m)) return "Das Passwort braucht mindestens 6 Zeichen.";
+    if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return "Keine Verbindung zum Server.";
+    return m;
+  }
+
+  function afterLogin() {
+    el("sync-pw").value = "";
+    syncMsg("");
+    updateSyncUI();
+    markDirty();          // lokale Ziele nicht verlieren -> beim ersten Abgleich zusammenführen
+    syncStatus("Gleiche ab …");
+    return syncPull();
+  }
+
+  if (el("sync-signin")) {
+    el("sync-signin").addEventListener("click", function () {
+      var em = el("sync-email").value.trim(), pw = el("sync-pw").value;
+      if (!em || !pw) { syncMsg("Bitte E-Mail und Passwort eingeben.", "err"); return; }
+      syncMsg("Melde an …");
+      Remote.signIn(em, pw).then(afterLogin).catch(function (e) { syncMsg(authError(e), "err"); });
+    });
+    el("sync-signup").addEventListener("click", function () {
+      var em = el("sync-email").value.trim(), pw = el("sync-pw").value;
+      if (!em || pw.length < 6) { syncMsg("E-Mail eingeben und ein Passwort mit mindestens 6 Zeichen.", "err"); return; }
+      syncMsg("Lege Konto an …");
+      Remote.signUp(em, pw).then(afterLogin).catch(function (e) {
+        if (e && e.code === "confirm") syncMsg("Fast geschafft: Bestätige zuerst die E-Mail von Supabase — danach hier anmelden.", "ok");
+        else syncMsg(authError(e), "err");
+      });
+    });
+    el("sync-signout").addEventListener("click", function () {
+      Remote.signOut().then(function () { updateSyncUI(); syncStatus(""); });
+    });
+  }
+
+  if (window.Remote) {
+    Remote.onAuthChange = updateSyncUI;
+    updateSyncUI();
+    if (syncActive()) syncPull(true);
+    setInterval(function () { if (!document.hidden) syncPull(true); }, 20000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) syncPull(true); });
+    window.addEventListener("online", function () { syncPull(true); schedulePush(); });
   }
 })();
 </script>
